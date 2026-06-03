@@ -69,7 +69,7 @@ Please follow the existing coding style and structure.
 This project is licensed under the MIT License. See LICENSE for more details.
 
 ## 👥 Maintainers
-@nijogeorgep – Core Developer
+@ngpayyappilly – Core Developer
 
 ## 👥 Contributors
-@nijogeorgep – Core Developer
+@ngpayyappilly – Core Developer
