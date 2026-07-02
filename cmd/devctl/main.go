@@ -1,6 +1,9 @@
 package main
 
 import (
+	"devctl/internal/auth"
+	"devctl/internal/auth/providers/apikey"
+	"devctl/internal/authcmd"
 	"devctl/internal/awshelper"
 	"devctl/internal/configcmd"
 	"devctl/internal/githelper"
@@ -20,6 +23,9 @@ var (
 )
 
 func main() {
+	// Register auth providers. Token resolved at login time from flag/env/config.
+	auth.Register(apikey.New(""))
+
 	var cfgFile string
 
 	rootCmd := &cobra.Command{
@@ -44,6 +50,7 @@ func main() {
 	rootCmd.AddCommand(awshelper.NewAwsHelperCmd())
 	rootCmd.AddCommand(githelper.NewGitHelperCmd())
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
+	rootCmd.AddCommand(authcmd.NewAuthCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

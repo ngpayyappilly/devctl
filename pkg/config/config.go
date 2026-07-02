@@ -13,6 +13,14 @@ const (
 	KeyAWSRegion     = "defaults.aws_region"
 	KeyKubeNamespace = "defaults.kube_namespace"
 	KeySSHUsername   = "defaults.ssh_username"
+
+	// KeyAuthProvider selects the active identity provider.
+	// Valid values: "okta", "ping", "oidc", "ldap", "aws-sso", "github", "apikey".
+	KeyAuthProvider = "auth.provider"
+
+	// KeyAuthToken is the static token for the apikey provider.
+	// Also read from the DEVCTL_TOKEN environment variable.
+	KeyAuthToken = "auth.token"
 )
 
 // Template is written by "devctl config init".
@@ -31,6 +39,42 @@ defaults:
 
   # Default SSH username for the aws ssh-ec2 command.
   ssh_username: ec2-user
+
+# Authentication — choose one provider and configure it below.
+# auth:
+#   provider: okta   # okta | ping | oidc | ldap | aws-sso | github | apikey
+#
+#   okta:
+#     domain: myorg.okta.com
+#     client_id: ""
+#
+#   ping:
+#     issuer_url: https://ping.myorg.com/as
+#     client_id: ""
+#
+#   oidc:
+#     issuer_url: https://your-idp.example.com
+#     client_id: ""
+#     scopes: [openid, profile, email, offline_access]
+#
+#   ldap:
+#     host: ldap.corp.example.com
+#     port: 636
+#     use_tls: true
+#     base_dn: DC=corp,DC=example,DC=com
+#     bind_dn: ""
+#     user_filter: "(&(objectClass=user)(sAMAccountName=%s))"
+#
+#   aws_sso:
+#     start_url: https://myorg.awsapps.com/start
+#     region: us-east-1
+#
+#   github:
+#     client_id: ""
+#     base_url: https://github.com
+#
+#   # apikey: set DEVCTL_TOKEN env var or auth.token below (CI/CD use)
+#   token: ""
 `
 
 // Init loads configuration in the following priority order:
@@ -49,6 +93,8 @@ func Init(cfgFile string) error {
 
 	// Also honour the standard AWS env vars for aws_region.
 	v.BindEnv(KeyAWSRegion, "AWS_REGION", "AWS_DEFAULT_REGION", "DEVCTL_DEFAULTS_AWS_REGION") //nolint:errcheck
+	// DEVCTL_TOKEN maps to the apikey provider's token config key.
+	v.BindEnv(KeyAuthToken, "DEVCTL_TOKEN") //nolint:errcheck
 
 	switch {
 	case cfgFile != "":
