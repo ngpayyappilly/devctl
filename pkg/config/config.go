@@ -51,6 +51,10 @@ const (
 	KeyAWSSORegion    = "auth.aws_sso.region"
 	KeyAWSSOAccountID = "auth.aws_sso.account_id"
 	KeyAWSSSORoleName = "auth.aws_sso.role_name"
+
+	// GitHub OAuth Device Flow provider config keys.
+	KeyGitHubClientID = "auth.github.client_id"
+	KeyGitHubBaseURL  = "auth.github.base_url"
 )
 
 // Template is written by "devctl config init".
@@ -103,8 +107,8 @@ defaults:
 #     role_name: DevAccess         # optional: auto-fetch role credentials after login
 #
 #   github:
-#     client_id: ""
-#     base_url: https://github.com
+#     client_id: "Iv1.abc123"
+#     base_url: https://github.com   # override for GitHub Enterprise Server
 #
 #   # apikey: set DEVCTL_TOKEN env var or auth.token below (CI/CD use)
 #   token: ""

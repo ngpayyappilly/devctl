@@ -9,6 +9,7 @@ import (
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
 	"devctl/internal/auth/providers/awssso"
+	githubprovider "devctl/internal/auth/providers/github"
 	ldapprovider "devctl/internal/auth/providers/ldap"
 	"devctl/internal/auth/providers/oidc"
 	"devctl/internal/auth/providers/okta"
@@ -84,6 +85,15 @@ func loginCmd() *cobra.Command {
 					IssuerURL:    issuer,
 					ClientID:     clientID,
 					ClientSecret: config.GetString(config.KeyPingClientSecret, ""),
+				})
+			case "github":
+				clientID := config.GetString(config.KeyGitHubClientID, "")
+				if clientID == "" {
+					return fmt.Errorf("github provider requires auth.github.client_id in config")
+				}
+				p = githubprovider.New(githubprovider.Config{
+					ClientID: clientID,
+					BaseURL:  config.GetString(config.KeyGitHubBaseURL, ""),
 				})
 			case "aws-sso":
 				startURL := config.GetString(config.KeyAWSSOStartURL, "")
