@@ -2,9 +2,7 @@ package awshelper
 
 import (
 	"context"
-	"devctl/pkg/config"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
@@ -15,6 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
+
+	"devctl/pkg/config"
+	deverrors "devctl/pkg/errors"
 )
 
 func NewAwsHelperCmd() *cobra.Command {
@@ -31,97 +32,94 @@ func NewAwsHelperCmd() *cobra.Command {
 	cmd.AddCommand(listEC2Cmd())
 	cmd.AddCommand(displayEC2DetailsCmd())
 	cmd.AddCommand(sshEC2Cmd())
-	//CloudFormation commands
+	// CloudFormation commands
 	cmd.AddCommand(listStacksCmd())
 	cmd.AddCommand(deleteStackCmd())
 	cmd.AddCommand(checkStackDriftCmd())
-	//IAM commands
+	// IAM commands
 	cmd.AddCommand(listIAMUsersCmd())
 	cmd.AddCommand(listIAMRolesCmd())
 	cmd.AddCommand(listIAMPoliciesCmd())
 	cmd.AddCommand(displayIAMRolePoliciesCmd())
-	
+
 	return cmd
 }
 
-func loadAWSConfig() aws.Config {
+func loadAWSConfig() (aws.Config, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
 	if err != nil {
-		log.Fatalf("❌ Failed to load AWS config: %v", err)
+		return aws.Config{}, deverrors.NewConfigError("load AWS config: %v", err)
 	}
-	return cfg
+	return cfg, nil
 }
 
 func listS3Cmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-s3",
 		Short: "List all S3 buckets",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := s3.NewFromConfig(cfg)
-
-			result, err := client.ListBuckets(context.TODO(), &s3.ListBucketsInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Unable to list buckets: %v", err)
+				return err
 			}
-
+			result, err := s3.NewFromConfig(cfg).ListBuckets(context.TODO(), &s3.ListBucketsInput{})
+			if err != nil {
+				return deverrors.NewAPIError("list buckets: %v", err)
+			}
 			for _, bucket := range result.Buckets {
 				fmt.Printf("🪣 %s\n", aws.ToString(bucket.Name))
 			}
+			return nil
 		},
 	}
 }
 
-// list the objects in the bucket
 func listBucketObjectsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-bucket-objects",
 		Short: "List objects in an S3 bucket",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Bucket name is required")
+				return deverrors.NewUsageError("bucket name is required")
 			}
-			bucketName := args[0]
-
-			cfg := loadAWSConfig()
-			client := s3.NewFromConfig(cfg)
-
-			result, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-				Bucket: aws.String(bucketName),
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			result, err := s3.NewFromConfig(cfg).ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+				Bucket: aws.String(args[0]),
 			})
 			if err != nil {
-				log.Fatalf("❌ Unable to list objects: %v", err)
+				return deverrors.NewAPIError("list objects in %s: %v", args[0], err)
 			}
-
 			for _, object := range result.Contents {
 				fmt.Printf("📦 %s\n", aws.ToString(object.Key))
 			}
+			return nil
 		},
 	}
 }
 
-// display bucket policies of a bucket
 func displayBucketPolicyCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "display-bucket-policy",
 		Short: "Display S3 bucket policy",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Bucket name is required")
+				return deverrors.NewUsageError("bucket name is required")
 			}
-			bucketName := args[0]
-
-			cfg := loadAWSConfig()
-			client := s3.NewFromConfig(cfg)
-
-			result, err := client.GetBucketPolicy(context.TODO(), &s3.GetBucketPolicyInput{
-				Bucket: aws.String(bucketName),
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			result, err := s3.NewFromConfig(cfg).GetBucketPolicy(context.TODO(), &s3.GetBucketPolicyInput{
+				Bucket: aws.String(args[0]),
 			})
 			if err != nil {
-				log.Fatalf("❌ Unable to get bucket policy: %v", err)
+				return deverrors.NewAPIError("get bucket policy for %s: %v", args[0], err)
 			}
-
-			fmt.Printf("🪣 Bucket Policy for %s:\n%s\n", bucketName, aws.ToString(result.Policy))
+			fmt.Printf("🪣 Bucket Policy for %s:\n%s\n", args[0], aws.ToString(result.Policy))
+			return nil
 		},
 	}
 }
@@ -130,15 +128,15 @@ func listEC2Cmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-ec2",
 		Short: "List EC2 instances",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := ec2.NewFromConfig(cfg)
-
-			output, err := client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Failed to describe instances: %v", err)
+				return err
 			}
-
+			output, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
+			if err != nil {
+				return deverrors.NewAPIError("describe instances: %v", err)
+			}
 			for _, res := range output.Reservations {
 				for _, inst := range res.Instances {
 					fmt.Printf("🖥️ Instance ID: %s | State: %s | Type: %s\n",
@@ -147,31 +145,29 @@ func listEC2Cmd() *cobra.Command {
 						string(inst.InstanceType))
 				}
 			}
+			return nil
 		},
 	}
 }
 
-// display ec2 instance details
 func displayEC2DetailsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "display-ec2",
 		Short: "Display EC2 instance details",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Instance ID is required")
+				return deverrors.NewUsageError("instance ID is required")
 			}
-			instanceID := args[0]
-
-			cfg := loadAWSConfig()
-			client := ec2.NewFromConfig(cfg)
-
-			output, err := client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
-				InstanceIds: []string{instanceID},
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			output, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+				InstanceIds: []string{args[0]},
 			})
 			if err != nil {
-				log.Fatalf("❌ Failed to describe instance: %v", err)
+				return deverrors.NewAPIError("describe instance %s: %v", args[0], err)
 			}
-
 			for _, res := range output.Reservations {
 				for _, inst := range res.Instances {
 					fmt.Printf("🖥️ Instance ID: %s | State: %s | Type: %s\n",
@@ -180,6 +176,7 @@ func displayEC2DetailsCmd() *cobra.Command {
 						string(inst.InstanceType))
 				}
 			}
+			return nil
 		},
 	}
 }
@@ -188,20 +185,21 @@ func listStacksCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-cf-stacks",
 		Short: "List CloudFormation stacks",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := cloudformation.NewFromConfig(cfg)
-
-			resp, err := client.ListStacks(context.TODO(), &cloudformation.ListStacksInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Failed to list stacks: %v", err)
+				return err
 			}
-
+			resp, err := cloudformation.NewFromConfig(cfg).ListStacks(context.TODO(), &cloudformation.ListStacksInput{})
+			if err != nil {
+				return deverrors.NewAPIError("list stacks: %v", err)
+			}
 			for _, summary := range resp.StackSummaries {
 				fmt.Printf("🧱 Stack: %s | Status: %s\n",
 					aws.ToString(summary.StackName),
 					string(summary.StackStatus))
 			}
+			return nil
 		},
 	}
 }
@@ -215,12 +213,7 @@ func sshEC2Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ssh-ec2",
 		Short: "SSH into an EC2 instance using Instance ID",
-		Run: func(cmd *cobra.Command, args []string) {
-			if instanceID == "" || keyPath == "" {
-				log.Fatal("❌ Instance ID and key path are required")
-			}
-
-			// Fall back to config file / env var when flag was not explicitly set.
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("region") {
 				region = config.GetString(config.KeyAWSRegion, "us-east-1")
 			}
@@ -230,28 +223,28 @@ func sshEC2Cmd() *cobra.Command {
 
 			cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(region))
 			if err != nil {
-				log.Fatalf("❌ Failed to load AWS config: %v", err)
+				return deverrors.NewConfigError("load AWS config: %v", err)
 			}
 
-			client := ec2.NewFromConfig(cfg)
-			out, err := client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+			out, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
 				InstanceIds: []string{instanceID},
 			})
 			if err != nil || len(out.Reservations) == 0 || len(out.Reservations[0].Instances) == 0 {
-				log.Fatalf("❌ Failed to describe instance %s: %v", instanceID, err)
+				return deverrors.NewAPIError("describe instance %s: %v", instanceID, err)
 			}
 
 			inst := out.Reservations[0].Instances[0]
 			if inst.PublicIpAddress == nil {
-				log.Fatal("❌ Instance does not have a public IP")
+				return deverrors.NewAPIError("instance %s does not have a public IP", instanceID)
 			}
 
 			ip := aws.ToString(inst.PublicIpAddress)
 			sshCmd := fmt.Sprintf("ssh -i %s %s@%s", keyPath, username, ip)
 			fmt.Printf("👉 Executing: %s\n", sshCmd)
-			if err = executeShell(sshCmd); err != nil {
-				log.Fatalf("❌ SSH command failed: %v", err)
+			if err := executeShell(sshCmd); err != nil {
+				return fmt.Errorf("SSH command failed: %w", err)
 			}
+			return nil
 		},
 	}
 
@@ -265,7 +258,6 @@ func sshEC2Cmd() *cobra.Command {
 	return cmd
 }
 
-// executeShell runs a local shell command
 func executeShell(command string) error {
 	cmd := exec.Command("bash", "-c", command)
 	cmd.Stdin = os.Stdin
@@ -274,145 +266,139 @@ func executeShell(command string) error {
 	return cmd.Run()
 }
 
-// Delete cloudformation stack
 func deleteStackCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete-cf-stack",
 		Short: "Delete a CloudFormation stack",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := cloudformation.NewFromConfig(cfg)
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Stack name is required")
+				return deverrors.NewUsageError("stack name is required")
 			}
-			stackName := args[0]
-
-			_, err := client.DeleteStack(context.TODO(), &cloudformation.DeleteStackInput{
-				StackName: aws.String(stackName),
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			_, err = cloudformation.NewFromConfig(cfg).DeleteStack(context.TODO(), &cloudformation.DeleteStackInput{
+				StackName: aws.String(args[0]),
 			})
 			if err != nil {
-				log.Fatalf("❌ Failed to delete stack %s: %v", stackName, err)
+				return deverrors.NewAPIError("delete stack %s: %v", args[0], err)
 			}
-
-			fmt.Printf("✅ Stack %s deletion initiated.\n", stackName)
+			fmt.Printf("✅ Stack %s deletion initiated.\n", args[0])
+			return nil
 		},
 	}
 }
 
-// check the cloudformation stack is drifted or not
 func checkStackDriftCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "check-stack-drift",
 		Short: "Check if a CloudFormation stack is drifted",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := cloudformation.NewFromConfig(cfg)
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Stack name is required")
+				return deverrors.NewUsageError("stack name is required")
 			}
-			stackName := args[0]
-
-			_, err := client.DescribeStackResourceDrifts(context.TODO(), &cloudformation.DescribeStackResourceDriftsInput{
-				StackName: aws.String(stackName),
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			_, err = cloudformation.NewFromConfig(cfg).DescribeStackResourceDrifts(context.TODO(), &cloudformation.DescribeStackResourceDriftsInput{
+				StackName: aws.String(args[0]),
 			})
 			if err != nil {
-				log.Fatalf("❌ Failed to check stack drift for %s: %v", stackName, err)
+				return deverrors.NewAPIError("check stack drift for %s: %v", args[0], err)
 			}
-
-			fmt.Printf("✅ Stack %s drift check initiated.\n", stackName)
+			fmt.Printf("✅ Stack %s drift check initiated.\n", args[0])
+			return nil
 		},
 	}
 }
 
-// List IAM Users
 func listIAMUsersCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-iam-users",
 		Short: "List IAM users",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := iam.NewFromConfig(cfg)
-
-			result, err := client.ListUsers(context.TODO(), &iam.ListUsersInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Unable to list IAM users: %v", err)
+				return err
 			}
-
+			result, err := iam.NewFromConfig(cfg).ListUsers(context.TODO(), &iam.ListUsersInput{})
+			if err != nil {
+				return deverrors.NewAPIError("list IAM users: %v", err)
+			}
 			for _, user := range result.Users {
 				fmt.Printf("👤 %s\n", aws.ToString(user.UserName))
 			}
+			return nil
 		},
 	}
 }
 
-// List IAM Roles
 func listIAMRolesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-iam-roles",
 		Short: "List IAM roles",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := iam.NewFromConfig(cfg)
-
-			result, err := client.ListRoles(context.TODO(), &iam.ListRolesInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Unable to list IAM roles: %v", err)
+				return err
 			}
-
+			result, err := iam.NewFromConfig(cfg).ListRoles(context.TODO(), &iam.ListRolesInput{})
+			if err != nil {
+				return deverrors.NewAPIError("list IAM roles: %v", err)
+			}
 			for _, role := range result.Roles {
 				fmt.Printf("👤 %s\n", aws.ToString(role.RoleName))
 			}
+			return nil
 		},
 	}
 }
 
-// List IAM Policies
 func listIAMPoliciesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list-iam-policies",
 		Short: "List IAM policies",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := loadAWSConfig()
-			client := iam.NewFromConfig(cfg)
-
-			result, err := client.ListPolicies(context.TODO(), &iam.ListPoliciesInput{})
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := loadAWSConfig()
 			if err != nil {
-				log.Fatalf("❌ Unable to list IAM policies: %v", err)
+				return err
 			}
-
+			result, err := iam.NewFromConfig(cfg).ListPolicies(context.TODO(), &iam.ListPoliciesInput{})
+			if err != nil {
+				return deverrors.NewAPIError("list IAM policies: %v", err)
+			}
 			for _, policy := range result.Policies {
 				fmt.Printf("📜 %s\n", aws.ToString(policy.PolicyName))
 			}
+			return nil
 		},
 	}
 }
 
-// Display IAM Policies of a Role
 func displayIAMRolePoliciesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "display-iam-role-policies",
 		Short: "Display IAM policies of a role",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				log.Fatal("❌ Role name is required")
+				return deverrors.NewUsageError("role name is required")
 			}
-			roleName := args[0]
-
-			cfg := loadAWSConfig()
-			client := iam.NewFromConfig(cfg)
-
-			result, err := client.ListAttachedRolePolicies(context.TODO(), &iam.ListAttachedRolePoliciesInput{
-				RoleName: aws.String(roleName),
+			cfg, err := loadAWSConfig()
+			if err != nil {
+				return err
+			}
+			result, err := iam.NewFromConfig(cfg).ListAttachedRolePolicies(context.TODO(), &iam.ListAttachedRolePoliciesInput{
+				RoleName: aws.String(args[0]),
 			})
 			if err != nil {
-				log.Fatalf("❌ Unable to list policies for role %s: %v", roleName, err)
+				return deverrors.NewAPIError("list policies for role %s: %v", args[0], err)
 			}
-
 			for _, policy := range result.AttachedPolicies {
 				fmt.Printf("📜 %s\n", aws.ToString(policy.PolicyName))
 			}
+			return nil
 		},
 	}
 }

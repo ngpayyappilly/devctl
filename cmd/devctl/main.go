@@ -1,6 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
 	"devctl/internal/authcmd"
@@ -10,10 +15,7 @@ import (
 	"devctl/internal/kubehelper"
 	"devctl/internal/netcheck"
 	"devctl/pkg/config"
-	"fmt"
-	"os"
-
-	"github.com/spf13/cobra"
+	deverrors "devctl/pkg/errors"
 )
 
 var (
@@ -52,8 +54,11 @@ func main() {
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
 	rootCmd.AddCommand(authcmd.NewAuthCmd())
 
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
+
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(deverrors.ExitCode(err))
 	}
 }

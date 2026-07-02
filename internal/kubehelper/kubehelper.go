@@ -2,9 +2,7 @@ package kubehelper
 
 import (
 	"context"
-	"devctl/pkg/config"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
@@ -13,6 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"devctl/pkg/config"
 )
 
 func NewKubeHelperCmd() *cobra.Command {
@@ -31,19 +31,18 @@ func NewKubeHelperCmd() *cobra.Command {
 }
 
 func getKubeClient() (*kubernetes.Clientset, error) {
-	config, err := rest.InClusterConfig()
+	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		kubeconfig := os.Getenv("KUBECONFIG")
 		if kubeconfig == "" {
 			kubeconfig = os.ExpandEnv("$HOME/.kube/config")
 		}
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	return kubernetes.NewForConfig(config)
+	return kubernetes.NewForConfig(cfg)
 }
 
 func setContextCmd() *cobra.Command {
@@ -51,9 +50,14 @@ func setContextCmd() *cobra.Command {
 		Use:   "set-context [context] [namespace]",
 		Short: "Switch Kubernetes context and namespace",
 		Args:  cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
-			exec.Command("kubectl", "config", "use-context", args[0]).Run()
-			exec.Command("kubectl", "config", "set-context", "--current", "--namespace="+args[1]).Run()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exec.Command("kubectl", "config", "use-context", args[0]).Run(); err != nil {
+				return fmt.Errorf("set context %s: %w", args[0], err)
+			}
+			if err := exec.Command("kubectl", "config", "set-context", "--current", "--namespace="+args[1]).Run(); err != nil {
+				return fmt.Errorf("set namespace %s: %w", args[1], err)
+			}
+			return nil
 		},
 	}
 }
@@ -63,8 +67,11 @@ func restartDeploymentCmd() *cobra.Command {
 		Use:   "restart [deployment]",
 		Short: "Restart a deployment in current K8s namespace",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			exec.Command("kubectl", "rollout", "restart", "deployment/"+args[0]).Run()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exec.Command("kubectl", "rollout", "restart", "deployment/"+args[0]).Run(); err != nil {
+				return fmt.Errorf("restart deployment %s: %w", args[0], err)
+			}
+			return nil
 		},
 	}
 }
@@ -74,8 +81,11 @@ func getLogsFromPodCmd() *cobra.Command {
 		Use:   "logs [pod]",
 		Short: "Tail logs from a pod",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			exec.Command("kubectl", "logs", "-f", args[0]).Run()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exec.Command("kubectl", "logs", "-f", args[0]).Run(); err != nil {
+				return fmt.Errorf("fetch logs for pod %s: %w", args[0], err)
+			}
+			return nil
 		},
 	}
 }
@@ -86,24 +96,25 @@ func getPodsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-pods",
 		Short: "List pods in a namespace",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("namespace") {
 				namespace = config.GetString(config.KeyKubeNamespace, "default")
 			}
 
 			clientset, err := getKubeClient()
 			if err != nil {
-				log.Fatalf("Failed to create Kubernetes client: %v", err)
+				return fmt.Errorf("create Kubernetes client: %w", err)
 			}
 
 			pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 			if err != nil {
-				log.Fatalf("Error fetching pods: %v", err)
+				return fmt.Errorf("list pods in namespace %q: %w", namespace, err)
 			}
 
 			for _, pod := range pods.Items {
 				fmt.Printf("🟢 %s (%s)\n", pod.Name, pod.Status.Phase)
 			}
+			return nil
 		},
 	}
 
@@ -115,17 +126,18 @@ func currentContextCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "current-context",
 		Short: "Show the current Kubernetes context",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			kubeconfig := os.Getenv("KUBECONFIG")
 			if kubeconfig == "" {
 				kubeconfig = os.ExpandEnv("$HOME/.kube/config")
 			}
-			config, err := clientcmd.LoadFromFile(kubeconfig)
+			cfg, err := clientcmd.LoadFromFile(kubeconfig)
 			if err != nil {
-				log.Fatalf("Failed to load kubeconfig: %v", err)
+				return fmt.Errorf("load kubeconfig: %w", err)
 			}
 
-			fmt.Printf("📌 Current context: %s\n", config.CurrentContext)
+			fmt.Printf("📌 Current context: %s\n", cfg.CurrentContext)
+			return nil
 		},
 	}
 }

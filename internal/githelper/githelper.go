@@ -2,12 +2,13 @@ package githelper
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	deverrors "devctl/pkg/errors"
 )
 
 func NewGitHelperCmd() *cobra.Command {
@@ -31,17 +32,16 @@ func cloneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "clone",
 		Short: "Clone a Git repository",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if repo == "" {
-				log.Fatal("❌ --repo is required")
+				return deverrors.NewUsageError("--repo is required")
 			}
 
-			args = []string{"clone", repo}
+			gitArgs := []string{"clone", repo}
 			if dir != "" {
-				args = append(args, dir)
+				gitArgs = append(gitArgs, dir)
 			}
-
-			runGitCommand(args...)
+			return runGitCommand(gitArgs...)
 		},
 	}
 
@@ -56,11 +56,11 @@ func checkoutCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checkout",
 		Short: "Checkout a Git branch",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if branch == "" {
-				log.Fatal("❌ --branch is required")
+				return deverrors.NewUsageError("--branch is required")
 			}
-			runGitCommand("checkout", branch)
+			return runGitCommand("checkout", branch)
 		},
 	}
 
@@ -74,13 +74,14 @@ func commitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "commit",
 		Short: "Create a Git commit",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if message == "" {
-				log.Fatal("❌ --message is required")
+				return deverrors.NewUsageError("--message is required")
 			}
-
-			runGitCommand("add", ".")
-			runGitCommand("commit", "-m", message)
+			if err := runGitCommand("add", "."); err != nil {
+				return err
+			}
+			return runGitCommand("commit", "-m", message)
 		},
 	}
 
@@ -95,18 +96,18 @@ func pushCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push",
 		Short: "Push changes to a Git remote",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if remote == "" {
 				remote = "origin"
 			}
 			if branch == "" {
 				out, err := exec.Command("git", "branch", "--show-current").Output()
 				if err != nil {
-					log.Fatalf("❌ Failed to determine current branch: %v", err)
+					return fmt.Errorf("determine current branch: %w", err)
 				}
 				branch = strings.TrimSpace(string(out))
 			}
-			runGitCommand("push", remote, branch)
+			return runGitCommand("push", remote, branch)
 		},
 	}
 
@@ -115,7 +116,7 @@ func pushCmd() *cobra.Command {
 	return cmd
 }
 
-func runGitCommand(args ...string) {
+func runGitCommand(args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -123,6 +124,7 @@ func runGitCommand(args ...string) {
 
 	fmt.Printf("▶️ git %s\n", strings.Join(args, " "))
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("❌ git command failed: %v", err)
+		return fmt.Errorf("git %s: %w", args[0], err)
 	}
+	return nil
 }
