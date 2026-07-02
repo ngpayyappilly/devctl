@@ -221,6 +221,13 @@ func sshEC2Cmd() *cobra.Command {
 				username = config.GetString(config.KeySSHUsername, "ec2-user")
 			}
 
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(),
+					"[dry-run] Would SSH into instance %s (key: %s, user: %s, region: %s)\n",
+					instanceID, keyPath, username, region)
+				return nil
+			}
+
 			cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(region))
 			if err != nil {
 				return deverrors.NewConfigError("load AWS config: %v", err)
@@ -273,6 +280,10 @@ func deleteStackCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return deverrors.NewUsageError("stack name is required")
+			}
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would execute: DeleteStack { StackName: %q }\n", args[0])
+				return nil
 			}
 			cfg, err := loadAWSConfig()
 			if err != nil {

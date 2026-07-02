@@ -68,6 +68,10 @@ func restartDeploymentCmd() *cobra.Command {
 		Short: "Restart a deployment in current K8s namespace",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would run: kubectl rollout restart deployment/%s\n", args[0])
+				return nil
+			}
 			if err := exec.Command("kubectl", "rollout", "restart", "deployment/"+args[0]).Run(); err != nil {
 				return fmt.Errorf("restart deployment %s: %w", args[0], err)
 			}

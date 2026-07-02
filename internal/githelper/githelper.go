@@ -78,6 +78,10 @@ func commitCmd() *cobra.Command {
 			if message == "" {
 				return deverrors.NewUsageError("--message is required")
 			}
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would run: git add . && git commit -m %q\n", message)
+				return nil
+			}
 			if err := runGitCommand("add", "."); err != nil {
 				return err
 			}
@@ -106,6 +110,10 @@ func pushCmd() *cobra.Command {
 					return fmt.Errorf("determine current branch: %w", err)
 				}
 				branch = strings.TrimSpace(string(out))
+			}
+			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {
+				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would run: git push %s %s\n", remote, branch)
+				return nil
 			}
 			return runGitCommand("push", remote, branch)
 		},
