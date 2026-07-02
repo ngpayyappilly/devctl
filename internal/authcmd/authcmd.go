@@ -8,6 +8,7 @@ import (
 
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
+	"devctl/internal/auth/providers/awssso"
 	ldapprovider "devctl/internal/auth/providers/ldap"
 	"devctl/internal/auth/providers/oidc"
 	"devctl/internal/auth/providers/okta"
@@ -83,6 +84,18 @@ func loginCmd() *cobra.Command {
 					IssuerURL:    issuer,
 					ClientID:     clientID,
 					ClientSecret: config.GetString(config.KeyPingClientSecret, ""),
+				})
+			case "aws-sso":
+				startURL := config.GetString(config.KeyAWSSOStartURL, "")
+				region := config.GetString(config.KeyAWSSORegion, "")
+				if startURL == "" || region == "" {
+					return fmt.Errorf("aws-sso provider requires auth.aws_sso.start_url and auth.aws_sso.region in config")
+				}
+				p = awssso.New(awssso.Config{
+					StartURL:  startURL,
+					Region:    region,
+					AccountID: config.GetString(config.KeyAWSSOAccountID, ""),
+					RoleName:  config.GetString(config.KeyAWSSSORoleName, ""),
 				})
 			case "ldap":
 				host := config.GetString(config.KeyLDAPHost, "")

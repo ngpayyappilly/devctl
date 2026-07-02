@@ -45,6 +45,12 @@ const (
 	KeyLDAPBaseDN     = "auth.ldap.base_dn"
 	KeyLDAPBindDN     = "auth.ldap.bind_dn"
 	KeyLDAPUserFilter = "auth.ldap.user_filter"
+
+	// AWS IAM Identity Center (SSO) provider config keys.
+	KeyAWSSOStartURL  = "auth.aws_sso.start_url"
+	KeyAWSSORegion    = "auth.aws_sso.region"
+	KeyAWSSOAccountID = "auth.aws_sso.account_id"
+	KeyAWSSSORoleName = "auth.aws_sso.role_name"
 )
 
 // Template is written by "devctl config init".
@@ -93,6 +99,8 @@ defaults:
 #   aws_sso:
 #     start_url: https://myorg.awsapps.com/start
 #     region: us-east-1
+#     account_id: "123456789012"  # optional: shown in auth status
+#     role_name: DevAccess         # optional: auto-fetch role credentials after login
 #
 #   github:
 #     client_id: ""
