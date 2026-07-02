@@ -44,6 +44,31 @@ Each package exposes a single `New<Name>Cmd() *cobra.Command` constructor that r
 
 Version metadata (`version`, `gitSha`, `buildDate`) is injected at build time via ldflags; the `version` subcommand prints them.
 
+## Commit Messages
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning. `semantic-release` runs on every push to `main` and determines the next version from commit prefixes.
+
+| Prefix | When to use | Version bump |
+|---|---|---|
+| `feat:` or `feat(scope):` | New user-visible feature | Minor (`0.x.0`) |
+| `fix:` or `fix(scope):` | Bug fix | Patch (`0.0.x`) |
+| `feat!:` or body contains `BREAKING CHANGE:` | Breaking API/CLI change | Major (`x.0.0`) |
+| `chore:`, `docs:`, `refactor:`, `test:`, `ci:` | Everything else | No release |
+
+**Scopes** (optional but encouraged): `auth`, `config`, `aws`, `kube`, `git`, `nw`
+
+Examples:
+```
+feat(auth): add generic OIDC provider with device flow
+fix(kube): handle missing namespace in get-pods
+feat!: rename --region flag to --aws-region across all commands
+chore: update go.sum
+```
+
 ## Release
 
-Releases are automated via GoReleaser (`.goreleaser.yaml`) triggered by CI. Artifacts include cross-platform binaries (linux/darwin/windows × amd64/arm64), Docker images pushed to `ghcr.io/nijogeorgep/devctl`, and a Homebrew formula. The `.releaserc` drives semantic-release for changelog generation.
+Push to `main` → `semantic-release` creates a git tag → GoReleaser builds and publishes.
+
+- **`.github/workflows/semantic-release.yaml`** — analyzes commits, bumps version, creates GitHub release, updates `CHANGELOG.md`
+- **`.github/workflows/release.yaml`** — triggered by `v*.*.*` tag; GoReleaser produces cross-platform binaries (linux/darwin/windows × amd64/arm64), Docker images at `ghcr.io/nijogeorgep/devctl`, and a Homebrew formula
+- Requires `GHA_TOKEN` and `GHCR_TOKEN` secrets set in GitHub repo settings
