@@ -26,6 +26,16 @@ const (
 	KeyOIDCIssuerURL    = "auth.oidc.issuer_url"
 	KeyOIDCClientID     = "auth.oidc.client_id"
 	KeyOIDCClientSecret = "auth.oidc.client_secret"
+
+	// Okta provider config keys.
+	KeyOktaDomain       = "auth.okta.domain"
+	KeyOktaClientID     = "auth.okta.client_id"
+	KeyOktaClientSecret = "auth.okta.client_secret"
+
+	// PingID / PingFederate provider config keys.
+	KeyPingIssuerURL    = "auth.ping.issuer_url"
+	KeyPingClientID     = "auth.ping.client_id"
+	KeyPingClientSecret = "auth.ping.client_secret"
 )
 
 // Template is written by "devctl config init".

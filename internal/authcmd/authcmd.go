@@ -9,6 +9,8 @@ import (
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
 	"devctl/internal/auth/providers/oidc"
+	"devctl/internal/auth/providers/okta"
+	"devctl/internal/auth/providers/ping"
 	"devctl/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -57,6 +59,28 @@ func loginCmd() *cobra.Command {
 					IssuerURL:    issuer,
 					ClientID:     clientID,
 					ClientSecret: config.GetString(config.KeyOIDCClientSecret, ""),
+				})
+			case "okta":
+				domain := config.GetString(config.KeyOktaDomain, "")
+				clientID := config.GetString(config.KeyOktaClientID, "")
+				if domain == "" || clientID == "" {
+					return fmt.Errorf("okta provider requires auth.okta.domain and auth.okta.client_id in config")
+				}
+				p = okta.New(okta.Config{
+					Domain:       domain,
+					ClientID:     clientID,
+					ClientSecret: config.GetString(config.KeyOktaClientSecret, ""),
+				})
+			case "ping":
+				issuer := config.GetString(config.KeyPingIssuerURL, "")
+				clientID := config.GetString(config.KeyPingClientID, "")
+				if issuer == "" || clientID == "" {
+					return fmt.Errorf("ping provider requires auth.ping.issuer_url and auth.ping.client_id in config")
+				}
+				p = ping.New(ping.Config{
+					IssuerURL:    issuer,
+					ClientID:     clientID,
+					ClientSecret: config.GetString(config.KeyPingClientSecret, ""),
 				})
 			default:
 				var err error
