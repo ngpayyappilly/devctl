@@ -9,12 +9,19 @@ jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push version tag + update CHANGELOG
+      issues: write         # comment on released issues
+      pull-requests: write  # comment on released PRs
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # semantic-release needs full history to compute next version
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
       - run: semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GHA_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GHA_TOKEN || secrets.GITHUB_TOKEN }}
