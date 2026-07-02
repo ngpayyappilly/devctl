@@ -8,6 +8,7 @@ import (
 
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
+	"devctl/internal/auth/providers/oidc"
 	"devctl/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -40,12 +41,24 @@ func loginCmd() *cobra.Command {
 				return fmt.Errorf("no auth provider configured; set auth.provider in config or use --provider")
 			}
 
-			// For the apikey provider, honour the --token flag by constructing
-			// the provider with it directly (takes priority over env/config).
+			// Certain providers are built from config at login time rather
+			// than pre-registered, because they require per-org config values.
 			var p auth.Provider
-			if providerName == "apikey" {
+			switch providerName {
+			case "apikey":
 				p = apikey.New(token)
-			} else {
+			case "oidc":
+				issuer := config.GetString(config.KeyOIDCIssuerURL, "")
+				clientID := config.GetString(config.KeyOIDCClientID, "")
+				if issuer == "" || clientID == "" {
+					return fmt.Errorf("oidc provider requires auth.oidc.issuer_url and auth.oidc.client_id in config")
+				}
+				p = oidc.New(oidc.Config{
+					IssuerURL:    issuer,
+					ClientID:     clientID,
+					ClientSecret: config.GetString(config.KeyOIDCClientSecret, ""),
+				})
+			default:
 				var err error
 				p, err = auth.Lookup(providerName)
 				if err != nil {

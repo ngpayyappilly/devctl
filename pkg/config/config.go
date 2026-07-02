@@ -21,6 +21,11 @@ const (
 	// KeyAuthToken is the static token for the apikey provider.
 	// Also read from the DEVCTL_TOKEN environment variable.
 	KeyAuthToken = "auth.token"
+
+	// OIDC provider config keys (also used by okta/ping profiles).
+	KeyOIDCIssuerURL    = "auth.oidc.issuer_url"
+	KeyOIDCClientID     = "auth.oidc.client_id"
+	KeyOIDCClientSecret = "auth.oidc.client_secret"
 )
 
 // Template is written by "devctl config init".
