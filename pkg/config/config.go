@@ -36,6 +36,15 @@ const (
 	KeyPingIssuerURL    = "auth.ping.issuer_url"
 	KeyPingClientID     = "auth.ping.client_id"
 	KeyPingClientSecret = "auth.ping.client_secret"
+
+	// LDAP / Active Directory provider config keys.
+	// Bind password is never stored in config — use DEVCTL_LDAP_BIND_PASSWORD env var.
+	KeyLDAPHost       = "auth.ldap.host"
+	KeyLDAPPort       = "auth.ldap.port"
+	KeyLDAPUseTLS     = "auth.ldap.use_tls"
+	KeyLDAPBaseDN     = "auth.ldap.base_dn"
+	KeyLDAPBindDN     = "auth.ldap.bind_dn"
+	KeyLDAPUserFilter = "auth.ldap.user_filter"
 )
 
 // Template is written by "devctl config init".
@@ -74,11 +83,12 @@ defaults:
 #
 #   ldap:
 #     host: ldap.corp.example.com
-#     port: 636
-#     use_tls: true
+#     port: 636             # 636 for LDAPS (use_tls: true) or 389 for StartTLS
+#     use_tls: true         # true = LDAPS; false = StartTLS on plain connection
 #     base_dn: DC=corp,DC=example,DC=com
-#     bind_dn: ""
+#     bind_dn: CN=devctl-svc,OU=ServiceAccounts,DC=corp,DC=example,DC=com
 #     user_filter: "(&(objectClass=user)(sAMAccountName=%s))"
+#     # Bind password: set DEVCTL_LDAP_BIND_PASSWORD env var — never store in config file
 #
 #   aws_sso:
 #     start_url: https://myorg.awsapps.com/start

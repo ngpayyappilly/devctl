@@ -8,12 +8,14 @@ import (
 
 	"devctl/internal/auth"
 	"devctl/internal/auth/providers/apikey"
+	ldapprovider "devctl/internal/auth/providers/ldap"
 	"devctl/internal/auth/providers/oidc"
 	"devctl/internal/auth/providers/okta"
 	"devctl/internal/auth/providers/ping"
 	"devctl/pkg/config"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -81,6 +83,20 @@ func loginCmd() *cobra.Command {
 					IssuerURL:    issuer,
 					ClientID:     clientID,
 					ClientSecret: config.GetString(config.KeyPingClientSecret, ""),
+				})
+			case "ldap":
+				host := config.GetString(config.KeyLDAPHost, "")
+				baseDN := config.GetString(config.KeyLDAPBaseDN, "")
+				if host == "" || baseDN == "" {
+					return fmt.Errorf("ldap provider requires auth.ldap.host and auth.ldap.base_dn in config")
+				}
+				p = ldapprovider.New(ldapprovider.Config{
+					Host:       host,
+					Port:       viper.GetInt(config.KeyLDAPPort),
+					UseTLS:     viper.GetBool(config.KeyLDAPUseTLS),
+					BaseDN:     baseDN,
+					BindDN:     config.GetString(config.KeyLDAPBindDN, ""),
+					UserFilter: config.GetString(config.KeyLDAPUserFilter, ""),
 				})
 			default:
 				var err error
