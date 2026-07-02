@@ -1,3 +1,10 @@
+# [0.24.0](https://github.com/ngpayyappilly/devctl/compare/v0.23.0...v0.24.0) (2026-07-02)
+
+
+### Features
+
+* **cli:** add --dry-run flag to destructive commands (CLO-178) ([5664283](https://github.com/ngpayyappilly/devctl/commit/56642836645885991d13b04874404eb3a550295c))
+
 # [0.23.0](https://github.com/ngpayyappilly/devctl/compare/v0.22.0...v0.23.0) (2026-07-02)
 
 
