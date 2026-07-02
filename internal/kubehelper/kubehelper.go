@@ -2,12 +2,13 @@ package kubehelper
 
 import (
 	"context"
+	"devctl/pkg/config"
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"os/exec"
 
+	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -86,6 +87,10 @@ func getPodsCmd() *cobra.Command {
 		Use:   "get-pods",
 		Short: "List pods in a namespace",
 		Run: func(cmd *cobra.Command, args []string) {
+			if !cmd.Flags().Changed("namespace") {
+				namespace = config.GetString(config.KeyKubeNamespace, "default")
+			}
+
 			clientset, err := getKubeClient()
 			if err != nil {
 				log.Fatalf("Failed to create Kubernetes client: %v", err)
@@ -102,7 +107,7 @@ func getPodsCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Namespace to list pods in")
+	cmd.Flags().StringVarP(&namespace, "namespace", "n", "", "Namespace to list pods in (falls back to config, then \"default\")")
 	return cmd
 }
 

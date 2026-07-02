@@ -2,17 +2,19 @@ package awshelper
 
 import (
 	"context"
+	"devctl/pkg/config"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
-	"log"
-	"os"
-	"os/exec"
 )
 
 func NewAwsHelperCmd() *cobra.Command {
@@ -43,7 +45,7 @@ func NewAwsHelperCmd() *cobra.Command {
 }
 
 func loadAWSConfig() aws.Config {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		log.Fatalf("❌ Failed to load AWS config: %v", err)
 	}
@@ -218,7 +220,15 @@ func sshEC2Cmd() *cobra.Command {
 				log.Fatal("❌ Instance ID and key path are required")
 			}
 
-			cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+			// Fall back to config file / env var when flag was not explicitly set.
+			if !cmd.Flags().Changed("region") {
+				region = config.GetString(config.KeyAWSRegion, "us-east-1")
+			}
+			if !cmd.Flags().Changed("user") {
+				username = config.GetString(config.KeySSHUsername, "ec2-user")
+			}
+
+			cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(region))
 			if err != nil {
 				log.Fatalf("❌ Failed to load AWS config: %v", err)
 			}
@@ -237,15 +247,9 @@ func sshEC2Cmd() *cobra.Command {
 			}
 
 			ip := aws.ToString(inst.PublicIpAddress)
-			user := username
-			if user == "" {
-				user = "ec2-user"
-			}
-
-			sshCmd := fmt.Sprintf("ssh -i %s %s@%s", keyPath, user, ip)
+			sshCmd := fmt.Sprintf("ssh -i %s %s@%s", keyPath, username, ip)
 			fmt.Printf("👉 Executing: %s\n", sshCmd)
-			err = executeShell(sshCmd)
-			if err != nil {
+			if err = executeShell(sshCmd); err != nil {
 				log.Fatalf("❌ SSH command failed: %v", err)
 			}
 		},
@@ -253,8 +257,8 @@ func sshEC2Cmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&instanceID, "instance-id", "i", "", "EC2 instance ID (required)")
 	cmd.Flags().StringVarP(&keyPath, "key", "k", "", "Path to private key file (required)")
-	cmd.Flags().StringVarP(&username, "user", "u", "", "SSH username (default: ec2-user)")
-	cmd.Flags().StringVar(&region, "region", "us-east-1", "AWS region")
+	cmd.Flags().StringVarP(&username, "user", "u", "", "SSH username (falls back to config, then ec2-user)")
+	cmd.Flags().StringVar(&region, "region", "", "AWS region (falls back to config, then us-east-1)")
 	cmd.MarkFlagRequired("instance-id")
 	cmd.MarkFlagRequired("key")
 

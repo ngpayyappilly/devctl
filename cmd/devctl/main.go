@@ -2,12 +2,15 @@ package main
 
 import (
 	"devctl/internal/awshelper"
+	"devctl/internal/configcmd"
 	"devctl/internal/githelper"
 	"devctl/internal/kubehelper"
 	"devctl/internal/netcheck"
+	"devctl/pkg/config"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -17,8 +20,17 @@ var (
 )
 
 func main() {
-	// Set up the root command
-	var rootCmd = &cobra.Command{Use: "devctl"}
+	var cfgFile string
+
+	rootCmd := &cobra.Command{
+		Use:   "devctl",
+		Short: "Developer and SRE utility for Git, Kubernetes, AWS, and networking",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return config.Init(cfgFile)
+		},
+	}
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: .devctl.yaml or ~/.devctl/config.yaml)")
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
@@ -31,6 +43,7 @@ func main() {
 	rootCmd.AddCommand(kubehelper.NewKubeHelperCmd())
 	rootCmd.AddCommand(awshelper.NewAwsHelperCmd())
 	rootCmd.AddCommand(githelper.NewGitHelperCmd())
+	rootCmd.AddCommand(configcmd.NewConfigCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
