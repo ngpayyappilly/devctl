@@ -1,3 +1,10 @@
+# [0.28.0](https://github.com/ngpayyappilly/devctl/compare/v0.27.0...v0.28.0) (2026-07-04)
+
+
+### Features
+
+* **config:** add named profiles and --profile/--env flag (CLO-174) ([ba1cb36](https://github.com/ngpayyappilly/devctl/commit/ba1cb365e80e53c7c14a81657418ec52dd94a253))
+
 # [0.27.0](https://github.com/ngpayyappilly/devctl/compare/v0.26.0...v0.27.0) (2026-07-04)
 
 
