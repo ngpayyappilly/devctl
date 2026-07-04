@@ -1,3 +1,10 @@
+# [0.25.0](https://github.com/ngpayyappilly/devctl/compare/v0.24.0...v0.25.0) (2026-07-04)
+
+
+### Features
+
+* **config:** replace hardcoded region/namespace defaults with config-driven values (CLO-177) ([8ccdf3e](https://github.com/ngpayyappilly/devctl/commit/8ccdf3e1ed7e9c98e2f2bf6cd4aba79752a08878))
+
 # [0.24.0](https://github.com/ngpayyappilly/devctl/compare/v0.23.0...v0.24.0) (2026-07-02)
 
 
