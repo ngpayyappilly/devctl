@@ -1,3 +1,10 @@
+# [0.26.0](https://github.com/ngpayyappilly/devctl/compare/v0.25.0...v0.26.0) (2026-07-04)
+
+
+### Features
+
+* **cli:** add --output json|table|yaml flag to all data commands (CLO-176) ([ec0bedf](https://github.com/ngpayyappilly/devctl/commit/ec0bedfbbe40bcc8d6485bd83319e1b6e35261bb))
+
 # [0.25.0](https://github.com/ngpayyappilly/devctl/compare/v0.24.0...v0.25.0) (2026-07-04)
 
 
