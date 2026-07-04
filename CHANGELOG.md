@@ -1,3 +1,10 @@
+# [0.27.0](https://github.com/ngpayyappilly/devctl/compare/v0.26.0...v0.27.0) (2026-07-04)
+
+
+### Features
+
+* **cli:** add plugin system — discover and run devctl-* binaries from PATH (CLO-175) ([0423f54](https://github.com/ngpayyappilly/devctl/commit/0423f546fd38af624d224261a511250401120590))
+
 # [0.26.0](https://github.com/ngpayyappilly/devctl/compare/v0.25.0...v0.26.0) (2026-07-04)
 
 
