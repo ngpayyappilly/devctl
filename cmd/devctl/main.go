@@ -14,6 +14,8 @@ import (
 	"devctl/internal/githelper"
 	"devctl/internal/kubehelper"
 	"devctl/internal/netcheck"
+	"devctl/internal/plugin"
+	"devctl/internal/plugincmd"
 	"devctl/pkg/config"
 	deverrors "devctl/pkg/errors"
 )
@@ -55,6 +57,11 @@ func main() {
 	rootCmd.AddCommand(githelper.NewGitHelperCmd())
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
 	rootCmd.AddCommand(authcmd.NewAuthCmd())
+	rootCmd.AddCommand(plugincmd.NewPluginCmd())
+
+	// Discover and register devctl-* plugins after all built-ins so that
+	// built-in names always win over plugin names.
+	plugin.RegisterPlugins(rootCmd)
 
 	rootCmd.SilenceErrors = true
 	rootCmd.SilenceUsage = true

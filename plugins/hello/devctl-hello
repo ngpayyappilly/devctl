@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Sample devctl plugin — place this (or a symlink) on PATH as devctl-hello
+# and it will be available as: devctl hello [args...]
+set -e
+
+echo "Hello from devctl-hello!"
+if [ "$#" -gt 0 ]; then
+  echo "Args: $*"
+fi
