@@ -75,6 +75,20 @@ func TestInit_MalformedFileWarnsAndContinues(t *testing.T) {
 	assert.NoError(t, config.Init(cfgPath))
 }
 
+func TestInit_DevctlNamespaceEnvVar(t *testing.T) {
+	resetViper()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  kube_namespace: \"\"\n"), 0o644))
+
+	t.Setenv("DEVCTL_NAMESPACE", "production")
+
+	require.NoError(t, config.Init(cfgPath))
+
+	assert.Equal(t, "production", config.GetString(config.KeyKubeNamespace, ""))
+}
+
 func TestGetString_FallbackWhenEmpty(t *testing.T) {
 	resetViper()
 

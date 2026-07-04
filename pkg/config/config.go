@@ -130,8 +130,15 @@ func Init(cfgFile string) error {
 
 	// Also honour the standard AWS env vars for aws_region.
 	v.BindEnv(KeyAWSRegion, "AWS_REGION", "AWS_DEFAULT_REGION", "DEVCTL_DEFAULTS_AWS_REGION") //nolint:errcheck
+	// DEVCTL_NAMESPACE (or the prefixed form) overrides the kube namespace.
+	v.BindEnv(KeyKubeNamespace, "DEVCTL_NAMESPACE", "DEVCTL_DEFAULTS_KUBE_NAMESPACE") //nolint:errcheck
 	// DEVCTL_TOKEN maps to the apikey provider's token config key.
 	v.BindEnv(KeyAuthToken, "DEVCTL_TOKEN") //nolint:errcheck
+
+	// Viper-level default for ssh_username so the value flows through the config
+	// resolution chain (CLI flag > env var > config file > this default) rather
+	// than being hardcoded in the command handler.
+	v.SetDefault(KeySSHUsername, "ec2-user")
 
 	switch {
 	case cfgFile != "":

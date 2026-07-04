@@ -2,11 +2,14 @@ package awshelper
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	deverrors "devctl/pkg/errors"
 )
 
 // newTestRoot returns a minimal root command that carries the global --dry-run
@@ -46,10 +49,29 @@ func TestSSHEC2Cmd_DryRun(t *testing.T) {
 	root := newTestRoot()
 	root.SetOut(&out)
 	root.AddCommand(sshEC2Cmd())
-	root.SetArgs([]string{"ssh-ec2", "-i", "i-0abc123", "-k", "~/.ssh/id_rsa", "--dry-run"})
+	root.SetArgs([]string{"ssh-ec2", "-i", "i-0abc123", "-k", "~/.ssh/id_rsa", "--region", "us-east-1", "--dry-run"})
 
 	err := root.Execute()
 	require.NoError(t, err, "dry-run must exit 0")
 	assert.Contains(t, out.String(), "[dry-run]")
 	assert.Contains(t, out.String(), "i-0abc123")
+	assert.Contains(t, out.String(), "us-east-1")
+}
+
+func TestSSHEC2Cmd_ErrorWhenNoRegion(t *testing.T) {
+	// Without --region, AWS_REGION, or config.Init() bindings, region resolves
+	// to "" and the command must return a descriptive ConfigError.
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+
+	root := newTestRoot()
+	root.AddCommand(sshEC2Cmd())
+	root.SetArgs([]string{"ssh-ec2", "-i", "i-0abc123", "-k", "~/.ssh/id_rsa", "--dry-run"})
+
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no AWS region configured")
+
+	var cfgErr *deverrors.ConfigError
+	assert.True(t, errors.As(err, &cfgErr), "expected ConfigError, got %T: %v", err, err)
 }

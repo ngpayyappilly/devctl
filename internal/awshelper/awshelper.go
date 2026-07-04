@@ -215,10 +215,14 @@ func sshEC2Cmd() *cobra.Command {
 		Short: "SSH into an EC2 instance using Instance ID",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("region") {
-				region = config.GetString(config.KeyAWSRegion, "us-east-1")
+				region = config.GetString(config.KeyAWSRegion, "")
+				if region == "" {
+					return deverrors.NewConfigError(
+						"no AWS region configured: pass --region, set AWS_REGION, or add defaults.aws_region to ~/.devctl/config.yaml")
+				}
 			}
 			if !cmd.Flags().Changed("user") {
-				username = config.GetString(config.KeySSHUsername, "ec2-user")
+				username = config.GetString(config.KeySSHUsername, "")
 			}
 
 			if dryRun, _ := cmd.Flags().GetBool("dry-run"); dryRun {

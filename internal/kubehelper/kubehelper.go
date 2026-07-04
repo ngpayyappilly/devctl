@@ -102,7 +102,7 @@ func getPodsCmd() *cobra.Command {
 		Short: "List pods in a namespace",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("namespace") {
-				namespace = config.GetString(config.KeyKubeNamespace, "default")
+				namespace = config.GetString(config.KeyKubeNamespace, "")
 			}
 
 			clientset, err := getKubeClient()
