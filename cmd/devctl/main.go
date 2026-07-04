@@ -40,6 +40,7 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: .devctl.yaml or ~/.devctl/config.yaml)")
 	rootCmd.PersistentFlags().BoolP("dry-run", "n", false, "Print what would be done without making any changes")
+	rootCmd.PersistentFlags().StringP("output", "o", "table", "Output format: table | json | yaml")
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

@@ -16,6 +16,7 @@ import (
 
 	"devctl/pkg/config"
 	deverrors "devctl/pkg/errors"
+	"devctl/pkg/output"
 )
 
 func NewAwsHelperCmd() *cobra.Command {
@@ -66,10 +67,11 @@ func listS3Cmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list buckets: %v", err)
 			}
-			for _, bucket := range result.Buckets {
-				fmt.Printf("🪣 %s\n", aws.ToString(bucket.Name))
+			buckets := make(BucketList, len(result.Buckets))
+			for i, b := range result.Buckets {
+				buckets[i] = Bucket{Name: aws.ToString(b.Name)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), buckets)
 		},
 	}
 }
@@ -92,10 +94,11 @@ func listBucketObjectsCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list objects in %s: %v", args[0], err)
 			}
-			for _, object := range result.Contents {
-				fmt.Printf("📦 %s\n", aws.ToString(object.Key))
+			objects := make(ObjectList, len(result.Contents))
+			for i, obj := range result.Contents {
+				objects[i] = Object{Key: aws.ToString(obj.Key)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), objects)
 		},
 	}
 }
@@ -133,19 +136,21 @@ func listEC2Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			output, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
+			ec2out, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
 			if err != nil {
 				return deverrors.NewAPIError("describe instances: %v", err)
 			}
-			for _, res := range output.Reservations {
+			var instances InstanceList
+			for _, res := range ec2out.Reservations {
 				for _, inst := range res.Instances {
-					fmt.Printf("🖥️ Instance ID: %s | State: %s | Type: %s\n",
-						aws.ToString(inst.InstanceId),
-						string(inst.State.Name),
-						string(inst.InstanceType))
+					instances = append(instances, Instance{
+						ID:    aws.ToString(inst.InstanceId),
+						State: string(inst.State.Name),
+						Type:  string(inst.InstanceType),
+					})
 				}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), instances)
 		},
 	}
 }
@@ -162,21 +167,23 @@ func displayEC2DetailsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			output, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+			ec2out, err := ec2.NewFromConfig(cfg).DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
 				InstanceIds: []string{args[0]},
 			})
 			if err != nil {
 				return deverrors.NewAPIError("describe instance %s: %v", args[0], err)
 			}
-			for _, res := range output.Reservations {
+			var instances InstanceList
+			for _, res := range ec2out.Reservations {
 				for _, inst := range res.Instances {
-					fmt.Printf("🖥️ Instance ID: %s | State: %s | Type: %s\n",
-						aws.ToString(inst.InstanceId),
-						string(inst.State.Name),
-						string(inst.InstanceType))
+					instances = append(instances, Instance{
+						ID:    aws.ToString(inst.InstanceId),
+						State: string(inst.State.Name),
+						Type:  string(inst.InstanceType),
+					})
 				}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), instances)
 		},
 	}
 }
@@ -194,12 +201,14 @@ func listStacksCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list stacks: %v", err)
 			}
-			for _, summary := range resp.StackSummaries {
-				fmt.Printf("🧱 Stack: %s | Status: %s\n",
-					aws.ToString(summary.StackName),
-					string(summary.StackStatus))
+			stacks := make(StackList, len(resp.StackSummaries))
+			for i, s := range resp.StackSummaries {
+				stacks[i] = Stack{
+					Name:   aws.ToString(s.StackName),
+					Status: string(s.StackStatus),
+				}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), stacks)
 		},
 	}
 }
@@ -342,10 +351,11 @@ func listIAMUsersCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list IAM users: %v", err)
 			}
-			for _, user := range result.Users {
-				fmt.Printf("👤 %s\n", aws.ToString(user.UserName))
+			users := make(IAMUserList, len(result.Users))
+			for i, u := range result.Users {
+				users[i] = IAMUser{UserName: aws.ToString(u.UserName)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), users)
 		},
 	}
 }
@@ -363,10 +373,11 @@ func listIAMRolesCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list IAM roles: %v", err)
 			}
-			for _, role := range result.Roles {
-				fmt.Printf("👤 %s\n", aws.ToString(role.RoleName))
+			roles := make(IAMRoleList, len(result.Roles))
+			for i, r := range result.Roles {
+				roles[i] = IAMRole{RoleName: aws.ToString(r.RoleName)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), roles)
 		},
 	}
 }
@@ -384,10 +395,11 @@ func listIAMPoliciesCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list IAM policies: %v", err)
 			}
-			for _, policy := range result.Policies {
-				fmt.Printf("📜 %s\n", aws.ToString(policy.PolicyName))
+			policies := make(IAMPolicyList, len(result.Policies))
+			for i, p := range result.Policies {
+				policies[i] = IAMPolicy{PolicyName: aws.ToString(p.PolicyName)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), policies)
 		},
 	}
 }
@@ -410,10 +422,11 @@ func displayIAMRolePoliciesCmd() *cobra.Command {
 			if err != nil {
 				return deverrors.NewAPIError("list policies for role %s: %v", args[0], err)
 			}
-			for _, policy := range result.AttachedPolicies {
-				fmt.Printf("📜 %s\n", aws.ToString(policy.PolicyName))
+			policies := make(IAMPolicyList, len(result.AttachedPolicies))
+			for i, p := range result.AttachedPolicies {
+				policies[i] = IAMPolicy{PolicyName: aws.ToString(p.PolicyName)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), policies)
 		},
 	}
 }

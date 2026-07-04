@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"devctl/pkg/config"
+	"devctl/pkg/output"
 )
 
 func NewKubeHelperCmd() *cobra.Command {
@@ -115,10 +116,11 @@ func getPodsCmd() *cobra.Command {
 				return fmt.Errorf("list pods in namespace %q: %w", namespace, err)
 			}
 
-			for _, pod := range pods.Items {
-				fmt.Printf("🟢 %s (%s)\n", pod.Name, pod.Status.Phase)
+			podList := make(PodList, len(pods.Items))
+			for i, pod := range pods.Items {
+				podList[i] = Pod{Name: pod.Name, Status: string(pod.Status.Phase)}
 			}
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), podList)
 		},
 	}
 
@@ -140,8 +142,7 @@ func currentContextCmd() *cobra.Command {
 				return fmt.Errorf("load kubeconfig: %w", err)
 			}
 
-			fmt.Printf("📌 Current context: %s\n", cfg.CurrentContext)
-			return nil
+			return output.New(output.FormatFromCmd(cmd)).Print(cmd.OutOrStdout(), ContextResult{Context: cfg.CurrentContext})
 		},
 	}
 }
