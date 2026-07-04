@@ -89,6 +89,126 @@ func TestInit_DevctlNamespaceEnvVar(t *testing.T) {
 	assert.Equal(t, "production", config.GetString(config.KeyKubeNamespace, ""))
 }
 
+func TestApplyProfile_LoadsValues(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+profiles:
+  dev:
+    aws_region: us-west-2
+    kube_namespace: dev-ns
+    kube_context: dev-cluster
+`), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	require.NoError(t, config.ApplyProfile("dev"))
+
+	assert.Equal(t, "us-west-2", config.GetString(config.KeyAWSRegion, ""))
+	assert.Equal(t, "dev-ns", config.GetString(config.KeyKubeNamespace, ""))
+	assert.Equal(t, "dev-cluster", config.GetString(config.KeyKubeContext, ""))
+	assert.Equal(t, "dev", config.ActiveProfile())
+}
+
+func TestApplyProfile_DefaultProfileFromConfig(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+default_profile: staging
+profiles:
+  staging:
+    aws_region: ap-southeast-1
+`), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	// ApplyProfile("") must pick up default_profile from the config file.
+	require.NoError(t, config.ApplyProfile(""))
+
+	assert.Equal(t, "ap-southeast-1", config.GetString(config.KeyAWSRegion, ""))
+	assert.Equal(t, "staging", config.ActiveProfile())
+}
+
+func TestApplyProfile_MissingProfileError(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+profiles:
+  dev:
+    aws_region: us-east-1
+`), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	err := config.ApplyProfile("nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "dev") // lists available profiles
+}
+
+func TestApplyProfile_NoProfilesDefinedError(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  aws_region: \"\"\n"), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	err := config.ApplyProfile("dev")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no profiles are defined")
+}
+
+func TestApplyProfile_EnvVarWinsOverProfile(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+profiles:
+  dev:
+    aws_region: us-east-1
+`), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	t.Setenv("AWS_REGION", "eu-central-1")
+
+	require.NoError(t, config.ApplyProfile("dev"))
+
+	// env var wins — profile's us-east-1 must not overwrite it.
+	assert.Equal(t, "eu-central-1", config.GetString(config.KeyAWSRegion, ""))
+}
+
+func TestApplyProfile_EmptyExplicitAndNoDefault_IsNoop(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  aws_region: eu-west-1\n"), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	// ApplyProfile("") with no default_profile must be a no-op and not error.
+	require.NoError(t, config.ApplyProfile(""))
+	assert.Equal(t, "", config.ActiveProfile())
+	// defaults block is still readable.
+	assert.Equal(t, "eu-west-1", config.GetString(config.KeyAWSRegion, ""))
+}
+
+func TestAvailableProfiles_ReturnsSortedNames(t *testing.T) {
+	resetViper()
+
+	cfgPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(`
+profiles:
+  prod:
+    aws_region: eu-west-1
+  dev:
+    aws_region: us-east-1
+  staging:
+    aws_region: ap-southeast-1
+`), 0o644))
+	require.NoError(t, config.Init(cfgPath))
+
+	assert.Equal(t, []string{"dev", "prod", "staging"}, config.AvailableProfiles())
+}
+
 func TestGetString_FallbackWhenEmpty(t *testing.T) {
 	resetViper()
 

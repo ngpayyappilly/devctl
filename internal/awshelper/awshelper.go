@@ -47,7 +47,11 @@ func NewAwsHelperCmd() *cobra.Command {
 }
 
 func loadAWSConfig() (aws.Config, error) {
-	cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
+	var opts []func(*awsconfig.LoadOptions) error
+	if profile := config.GetString(config.KeyAWSProfile, ""); profile != "" {
+		opts = append(opts, awsconfig.WithSharedConfigProfile(profile))
+	}
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), opts...)
 	if err != nil {
 		return aws.Config{}, deverrors.NewConfigError("load AWS config: %v", err)
 	}

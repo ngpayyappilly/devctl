@@ -38,7 +38,14 @@ func getKubeClient() (*kubernetes.Clientset, error) {
 		if kubeconfig == "" {
 			kubeconfig = os.ExpandEnv("$HOME/.kube/config")
 		}
-		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		contextName := config.GetString(config.KeyKubeContext, "")
+		if contextName != "" {
+			rules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
+			overrides := &clientcmd.ConfigOverrides{CurrentContext: contextName}
+			cfg, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
+		} else {
+			cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		}
 		if err != nil {
 			return nil, err
 		}
